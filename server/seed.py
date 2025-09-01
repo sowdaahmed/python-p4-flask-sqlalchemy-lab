@@ -1,50 +1,25 @@
-#!/usr/bin/env python3
+from app import app, db
+from server.models import Animal, Zookeeper, Enclosure
 
-from random import choice as rc
+def run():
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
 
-from faker import Faker
+        z1 = Zookeeper(name="Dylan Taylor", birthday="1990-06-12")
+        z2 = Zookeeper(name="Stephanie Contreras", birthday="1996-09-20")
 
-from app import app
-from models import db, Zookeeper, Animal, Enclosure
+        e1 = Enclosure(environment="trees", open_to_visitors=True)
+        e2 = Enclosure(environment="pond", open_to_visitors=False)
 
-fake = Faker()
+        a1 = Animal(name="Logan", species="Snake", zookeeper=z1, enclosure=e1)
+        a2 = Animal(name="Mia", species="Tiger", zookeeper=z1, enclosure=e1)
+        a3 = Animal(name="Bubbles", species="Fish", zookeeper=z2, enclosure=e2)
 
-with app.app_context():
+        db.session.add_all([z1, z2, e1, e2, a1, a2, a3])
+        db.session.commit()
 
-    Animal.query.delete()
-    Zookeeper.query.delete()
-    Enclosure.query.delete()
+        print("Seeded database.")
 
-    zookeepers = []
-    for n in range(25):
-        zk = Zookeeper(name=fake.name(), birthday=fake.date_between(
-            start_date='-70y', end_date='-18y'))
-        zookeepers.append(zk)
-
-    db.session.add_all(zookeepers)
-
-    enclosures = []
-    environments = ['Desert', 'Pond', 'Ocean', 'Field', 'Trees', 'Cave', 'Cage']
-
-    for n in range(25):
-        e = Enclosure(environment=rc(environments), open_to_visitors=rc([True, False]))
-        enclosures.append(e)
-
-    db.session.add_all(enclosures)
-
-    animals = []
-    species = ['Lion', 'Tiger', 'Bear', 'Hippo', 'Rhino', 'Elephant', 'Ostrich',
-        'Snake', 'Monkey']
-
-    for n in range(200):
-        name = fake.first_name()
-        while name in [a.name for a in animals]:
-            name=fake.first_name()
-        a = Animal(name=name, species=rc(species))
-        a.zookeeper = rc(zookeepers)
-        a.enclosure = rc(enclosures)
-        animals.append(a)
-
-    db.session.add_all(animals)
-    db.session.commit()
-
+if __name__ == "__main__":
+    run()

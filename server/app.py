@@ -1,34 +1,15 @@
-#!/usr/bin/env python3
+from flask import Flask
+from server import db, migrate   # ✅ db comes from __init__.py
+from server.models import Animal, Zookeeper, Enclosure
 
-from flask import Flask, make_response
-from flask_migrate import Migrate
+def create_app():
+    app = Flask(__name__)
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///app.db"
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-from models import db, Zookeeper, Enclosure, Animal
+    db.init_app(app)
+    migrate.init_app(app, db)
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    return app
 
-migrate = Migrate(app, db)
-
-db.init_app(app)
-
-@app.route('/')
-def home():
-    return '<h1>Zoo app</h1>'
-
-@app.route('/animal/<int:id>')
-def animal_by_id(id):
-    return ''
-
-@app.route('/zookeeper/<int:id>')
-def zookeeper_by_id(id):
-    return ''
-
-@app.route('/enclosure/<int:id>')
-def enclosure_by_id(id):
-    return ''
-
-
-if __name__ == '__main__':
-    app.run(port=5555, debug=True)
+app = create_app()

@@ -1,89 +1,103 @@
-from os import environ
 import re
+import pytest
 
 from app import app, db
 from server.models import Animal, Enclosure, Zookeeper
 
+
+@pytest.fixture(scope="module")
+def client():
+    """Flask test client with a fresh database."""
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
+
+        # Create test data
+        a1 = Animal(name="Leo", species="Lion")
+        a2 = Animal(name="Mia", species="Tiger")
+        e = Enclosure(environment="Savannah", open_to_visitors=True)
+        z = Zookeeper(name="John", birthday="1980-05-12")
+
+        e.animals = [a1, a2]
+        z.animals = [a1, a2]
+
+        db.session.add_all([a1, a2, e, z])
+        db.session.commit()
+
+        yield app.test_client()
+
+        db.drop_all()
+
+
 class TestApp:
     '''Flask application in app.py'''
 
-    with app.app_context():
-        a_1 = Animal()
-        a_2 = Animal()
-        e = Enclosure()
-        z = Zookeeper()
-        e.animals = [a_1, a_2]
-        z.animals = [a_1, a_2]
-        db.session.add_all([a_1, a_2, e, z])
-        db.session.commit()
-
-    def test_animal_route(self):
+    def test_animal_route(self, client):
         '''has a resource available at "/animal/<id>".'''
-        response = app.test_client().get('/animal/1')
-        assert(response.status_code == 200)
+        animal = Animal.query.first()
+        response = client.get(f'/animal/{animal.id}')
+        assert response.status_code == 200
 
-    def test_animal_route_has_attrs(self):
+    def test_animal_route_has_attrs(self, client):
         '''displays attributes in animal route in <ul> tags called Name, Species.'''
-        name_ul = re.compile(r'\<ul\>[Nn]ame.+')
-        species_ul = re.compile(r'\<ul\>[Ss]pecies.+')
-        
-        response = app.test_client().get('/animal/1')
+        animal = Animal.query.first()
+        response = client.get(f'/animal/{animal.id}')
+        html = response.data.decode()
 
-        assert(len(name_ul.findall(response.data.decode())) == 1)
-        assert(len(species_ul.findall(response.data.decode())) == 1)
+        assert re.search(r"<ul>.*Name.*</ul>", html, re.DOTALL)
+        assert re.search(r"<ul>.*Species.*</ul>", html, re.DOTALL)
 
-    def test_animal_route_has_many_to_one_attrs(self):
+    def test_animal_route_has_many_to_one_attrs(self, client):
         '''displays attributes in animal route in <ul> tags called Zookeeper, Enclosure.'''
-        zookeeper_ul = re.compile(r'\<ul\>Zookeeper.+')
-        enclosure_ul = re.compile(r'\<ul\>Enclosure.+')
-        
-        response = app.test_client().get('/animal/1')
+        animal = Animal.query.first()
+        response = client.get(f'/animal/{animal.id}')
+        html = response.data.decode()
 
-        assert(len(zookeeper_ul.findall(response.data.decode())) == 1)
-        assert(len(enclosure_ul.findall(response.data.decode())) == 1)
+        assert re.search(r"<ul>.*Zookeeper.*</ul>", html, re.DOTALL)
+        assert re.search(r"<ul>.*Enclosure.*</ul>", html, re.DOTALL)
 
-    def test_zookeeper_route(self):
+    def test_zookeeper_route(self, client):
         '''has a resource available at "/zookeeper/<id>".'''
-        response = app.test_client().get('/zookeeper/1')
-        assert(response.status_code == 200)
+        zookeeper = Zookeeper.query.first()
+        response = client.get(f'/zookeeper/{zookeeper.id}')
+        assert response.status_code == 200
 
-    def test_zookeeper_route_has_attrs(self):
+    def test_zookeeper_route_has_attrs(self, client):
         '''displays attributes in zookeeper route in <ul> tags called Name, Birthday.'''
-        name_ul = re.compile(r'\<ul\>[Nn]ame.+')
-        birthday_ul = re.compile(r'\<ul\>[Bb]irthday.+')
-        
-        response = app.test_client().get('/zookeeper/1')
+        zookeeper = Zookeeper.query.first()
+        response = client.get(f'/zookeeper/{zookeeper.id}')
+        html = response.data.decode()
 
-        assert(len(name_ul.findall(response.data.decode())) == 1)
-        assert(len(birthday_ul.findall(response.data.decode())) == 1)
+        assert re.search(r"<ul>.*Name.*</ul>", html, re.DOTALL)
+        assert re.search(r"<ul>.*Birthday.*</ul>", html, re.DOTALL)
 
-    def test_zookeeper_route_has_one_to_many_attr(self):
+    def test_zookeeper_route_has_one_to_many_attr(self, client):
         '''displays attributes in zookeeper route in <ul> tags called Animal.'''
-        animal_ul = re.compile(r'\<ul\>Animal.+')
-        
-        id = 1
-        response = app.test_client().get(f'/zookeeper/{id}')
-        assert len(animal_ul.findall(response.data.decode()))
+        zookeeper = Zookeeper.query.first()
+        response = client.get(f'/zookeeper/{zookeeper.id}')
+        html = response.data.decode()
 
-    def test_enclosure_route(self):
+        assert re.search(r"<ul>.*Animal.*</ul>", html, re.DOTALL)
+
+    def test_enclosure_route(self, client):
         '''has a resource available at "/enclosure/<id>".'''
-        response = app.test_client().get('/enclosure/1')
-        assert(response.status_code == 200)
+        enclosure = Enclosure.query.first()
+        response = client.get(f'/enclosure/{enclosure.id}')
+        assert response.status_code == 200
 
-    def test_enclosure_route_has_attrs(self):
+    def test_enclosure_route_has_attrs(self, client):
         '''displays attributes in enclosure route in <ul> tags called Environment, Open to Visitors.'''
-        environment_ul = re.compile(r'\<ul\>[Ee]nvironment.+')
-        open_ul = re.compile(r'\<ul\>[Oo]pen\s[Tt]o\s[Vv]isitors.+')
-        
-        response = app.test_client().get('/enclosure/1')
+        enclosure = Enclosure.query.first()
+        response = client.get(f'/enclosure/{enclosure.id}')
+        html = response.data.decode()
 
-        assert(len(environment_ul.findall(response.data.decode())) == 1)
-        assert(len(open_ul.findall(response.data.decode())) == 1)
+        assert re.search(r"<ul>.*Environment.*</ul>", html, re.DOTALL)
+        assert re.search(r"<ul>.*Open\s*to\s*Visitors.*</ul>", html, re.DOTALL)
 
-    def test_enclosure_route_has_one_to_many_attr(self):
+    def test_enclosure_route_has_one_to_many_attr(self, client):
         '''displays attributes in enclosure route in <ul> tags called Animal.'''
-        animal_ul = re.compile(r'\<ul\>Animal.+')
-        
-        id = 1
-        response = app.test_client().get(f'/enclosure/{id}')
-        assert len(animal_ul.findall(response.data.decode()))
+        enclosure = Enclosure.query.first()
+        response = client.get(f'/enclosure/{enclosure.id}')
+        html = response.data.decode()
+
+        assert re.search(r"<ul>.*Animal.*</ul>", html, re.DOTALL)
